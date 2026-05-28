@@ -1139,6 +1139,44 @@ static struct amba_driver mhuv2_driver = {
 };
 module_amba_driver(mhuv2_driver);
 
+/*----------------------------------------------------------------*/
+#include <linux/platform_device.h>
+
+static int mhuv2_platform_probe(struct platform_device *pdev)
+{
+	struct resource *res;
+	int irq;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	irq = platform_get_irq(pdev, 0);
+
+	return __mhuv2_probe(&pdev->dev, res, irq);
+}
+static void mhuv2_platform_remove(struct platform_device *pdev)
+{
+	__mhuv2_remove(&pdev->dev);
+}
+
+static const struct of_device_id mhuv2_of_ids[] = {
+	{ .compatible = "arm,mhuv2-tx", },
+	{ .compatible = "arm,mhuv2-rx", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, mhuv2_of_ids);
+
+static struct platform_driver mhuv2_platform_driver = {
+	.probe  = mhuv2_platform_probe,
+	.remove = mhuv2_platform_remove,
+	.driver = {
+		.name = MODULE_NAME,
+		.of_match_table = of_match_ptr(mhuv2_of_ids),
+	},
+};
+
+module_platform_driver(mhuv2_platform_driver);
+/*----------------------------------------------------------------*/
+
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ARM MHUv2 Driver");
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.org>");
