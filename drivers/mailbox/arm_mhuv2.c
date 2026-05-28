@@ -962,10 +962,9 @@ static int mhuv2_parse_channels(struct mhuv2 *mhu)
 	return mhuv2_allocate_channels(mhu);
 }
 
-static int mhuv2_tx_init(struct amba_device *adev, struct mhuv2 *mhu,
-			 void __iomem *reg)
+static int mhuv2_tx_init(struct device *dev, struct mhuv2 *mhu,
+			 void __iomem *reg, int irq)
 {
-	struct device *dev = mhu->mbox.dev;
 	int ret, i;
 
 	mhu->frame = SENDER_FRAME;
@@ -981,14 +980,14 @@ static int mhuv2_tx_init(struct amba_device *adev, struct mhuv2 *mhu,
 	 * For minor version 1 and forward, tx interrupt is provided by
 	 * the controller.
 	 */
-	if (mhu->minor && adev->irq[0]) {
-		ret = devm_request_threaded_irq(dev, adev->irq[0], NULL,
+	if (mhu->minor && irq) {
+		ret = devm_request_threaded_irq(dev, irq, NULL,
 						mhuv2_sender_interrupt,
 						IRQF_ONESHOT, "mhuv2-tx", mhu);
 		if (!ret) {
 			mhu->mbox.txdone_irq = true;
 			mhu->mbox.txdone_poll = false;
-			mhu->irq = adev->irq[0];
+			mhu->irq = irq;
 
 			writel_relaxed_bitfield(1, &mhu->send->int_en, struct int_en_t, chcomb);
 
@@ -1013,10 +1012,9 @@ out:
 	return 0;
 }
 
-static int mhuv2_rx_init(struct amba_device *adev, struct mhuv2 *mhu,
-			 void __iomem *reg)
+static int mhuv2_rx_init(struct device *dev, struct mhuv2 *mhu,
+			 void __iomem *reg, int irq)
 {
-	struct device *dev = mhu->mbox.dev;
 	int ret, i;
 
 	mhu->frame = RECEIVER_FRAME;
@@ -1026,7 +1024,7 @@ static int mhuv2_rx_init(struct amba_device *adev, struct mhuv2 *mhu,
 	mhu->windows = readl_relaxed_bitfield(&mhu->recv->mhu_cfg, struct mhu_cfg_t, num_ch);
 	mhu->minor = readl_relaxed_bitfield(&mhu->recv->aidr, struct aidr_t, arch_minor_rev);
 
-	mhu->irq = adev->irq[0];
+	mhu->irq = irq;
 	if (!mhu->irq) {
 		dev_err(dev, "Missing receiver IRQ\n");
 		return -EINVAL;
@@ -1048,10 +1046,8 @@ static int mhuv2_rx_init(struct amba_device *adev, struct mhuv2 *mhu,
 	return 0;
 }
 
-static int mhuv2_probe(struct amba_device *adev, const struct amba_id *id)
+static int __mhuv2_probe(struct device *dev, struct resource *res, int irq)
 {
-	struct device *dev = &adev->dev;
-	const struct device_node *np = dev->of_node;
 	struct mhuv2 *mhu;
 	void __iomem *reg;
 	int ret = -EINVAL;
@@ -1067,10 +1063,10 @@ static int mhuv2_probe(struct amba_device *adev, const struct amba_id *id)
 	mhu->mbox.dev = dev;
 	mhu->mbox.fw_xlate = mhuv2_mbox_fw_xlate;
 
-	if (of_device_is_compatible(np, "arm,mhuv2-tx"))
-		ret = mhuv2_tx_init(adev, mhu, reg);
-	else if (of_device_is_compatible(np, "arm,mhuv2-rx"))
-		ret = mhuv2_rx_init(adev, mhu, reg);
+	if (device_is_compatible(dev, "arm,mhuv2-tx"))
+		ret = mhuv2_tx_init(dev, mhu, reg, irq);
+	else if (device_is_compatible(dev, "arm,mhuv2-rx"))
+		ret = mhuv2_rx_init(dev, mhu, reg, irq);
 	else
 		dev_err(dev, "Invalid compatible property\n");
 
@@ -1084,7 +1080,7 @@ static int mhuv2_probe(struct amba_device *adev, const struct amba_id *id)
 	if (ret)
 		return ret;
 
-	amba_set_drvdata(adev, mhu);
+	dev_set_drvdata(dev, mhu);
 
 	ret = devm_mbox_controller_register(dev, &mhu->mbox);
 	if (ret)
@@ -1093,12 +1089,24 @@ static int mhuv2_probe(struct amba_device *adev, const struct amba_id *id)
 	return ret;
 }
 
-static void mhuv2_remove(struct amba_device *adev)
+static void __mhuv2_remove(struct device *dev)
 {
-	struct mhuv2 *mhu = amba_get_drvdata(adev);
+	struct mhuv2 *mhu = dev_get_drvdata(dev);
 
 	if (mhu->frame == SENDER_FRAME)
 		writel_relaxed(0x0, &mhu->send->access_request);
+}
+
+static int mhuv2_probe(struct amba_device *adev, const struct amba_id *id)
+{
+	int irq = adev->irq[0];
+
+	return __mhuv2_probe(&adev->dev, &adev->res, irq);
+}
+
+static void mhuv2_remove(struct amba_device *adev)
+{
+	__mhuv2_remove(&adev->dev);
 }
 
 static const struct amba_id mhuv2_ids[] = {
