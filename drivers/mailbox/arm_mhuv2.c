@@ -34,6 +34,8 @@
 #include <linux/of_address.h>
 #include <linux/spinlock.h>
 
+#define MODULE_NAME "arm-mhuv2"
+
 /* ====== MHUv2 Registers ====== */
 
 /* Maximum number of channel windows */
@@ -1131,7 +1133,7 @@ MODULE_DEVICE_TABLE(amba, mhuv2_ids);
 
 static struct amba_driver mhuv2_driver = {
 	.drv = {
-		.name	= "arm-mhuv2",
+		.name	= MODULE_NAME,
 	},
 	.id_table	= mhuv2_ids,
 	.probe		= mhuv2_probe,
