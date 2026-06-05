@@ -2823,12 +2823,14 @@ static int scmi_chan_setup(struct scmi_info *info, struct fwnode_handle *fwnode,
 		devm_kfree(info->dev, cinfo);
 		return -EINVAL;
 	}
+//	fwnode_handle_get(fwnode);
 
 	cinfo->id = prot_id;
 	cinfo->dev = &tdev->dev;
 	cinfo->handle = &info->handle;
 	ret = info->desc->ops->chan_setup(cinfo, info->dev, tx);
 	if (ret) {
+//		fwnode_handle_put(fwnode);
 		scmi_device_destroy(info->dev, prot_id, name);
 		devm_kfree(info->dev, cinfo);
 		return ret;
@@ -2852,6 +2854,7 @@ idr_alloc:
 		/* Destroy channel and device only if created by this call. */
 		if (tdev) {
 			info->desc->ops->chan_free(prot_id, cinfo, idr);
+//			fwnode_handle_put(fwnode);
 			scmi_device_destroy(info->dev, prot_id, name);
 			devm_kfree(info->dev, cinfo);
 		}
@@ -2950,6 +2953,7 @@ static int scmi_chan_destroy(int id, void *p, void *data)
 		struct scmi_info *info = handle_to_scmi_info(cinfo->handle);
 		struct scmi_device *sdev = to_scmi_dev(cinfo->dev);
 
+//		fwnode_handle_put(dev_fwnode(cinfo->dev));
 		scmi_device_destroy(info->dev, cinfo->id, sdev->name);
 		cinfo->dev = NULL;
 	}
@@ -3367,6 +3371,7 @@ static int scmi_probe(struct platform_device *pdev)
 	handle->devm_protocol_acquire = scmi_devm_protocol_acquire;
 	handle->devm_protocol_get = scmi_devm_protocol_get;
 	handle->devm_protocol_put = scmi_devm_protocol_put;
+
 	handle->is_transport_atomic = scmi_is_transport_atomic;
 
 	/* Setup all channels described in the fwnode at first */

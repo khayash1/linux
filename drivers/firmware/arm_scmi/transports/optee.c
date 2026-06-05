@@ -323,7 +323,7 @@ scmi_optee_chan_available(struct fwnode_handle *fwnode, int prot_id, int idx)
 	if (!of_node)
 		return false;
 
-	return !of_property_read_u32_index(of_node, "linaro,optee-channel-id",
+	return !of_property_read_u32_index(to_of_node(fwnode), "linaro,optee-channel-id",	// FIXME
 					   idx, &channel_id);
 }
 

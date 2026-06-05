@@ -91,12 +91,12 @@ mailbox_chan_available(struct fwnode_handle *fwnode, int prot_id, int idx)
 	 * index accordingly; proper full validation will be made later
 	 * in mailbox_chan_setup().
 	 */
-	num_mb = of_count_phandle_with_args(of_node, "mboxes", "#mbox-cells");
+	num_mb = of_count_phandle_with_args(to_of_node(fwnode), "mboxes", "#mbox-cells");	// FIXME
 	if (num_mb == 3 && idx == 1)
 		idx = 2;
 
-	return !of_parse_phandle_with_args(of_node, "mboxes",
-					   "#mbox-cells", idx, NULL);
+	return !fwnode_property_get_reference_args(fwnode, "mboxes",
+						   "#mbox-cells", 0, idx, NULL);
 }
 
 /**
@@ -121,10 +121,10 @@ static int mailbox_chan_validate(struct device *cdev, int *a2p_rx_chan,
 				 int *p2a_chan, int *p2a_rx_chan)
 {
 	int num_mb, num_sh, ret = 0;
-	struct device_node *np = cdev->of_node;
+	struct fwnode_handle *fwnode = dev_fwnode(cdev);
 
-	num_mb = of_count_phandle_with_args(np, "mboxes", "#mbox-cells");
-	num_sh = of_count_phandle_with_args(np, "shmem", NULL);
+	num_mb = of_count_phandle_with_args(to_of_node(fwnode), "mboxes", "#mbox-cells");	// FIXME
+	num_sh = of_count_phandle_with_args(to_of_node(fwnode), "shmem", NULL);			// FIXME
 	dev_dbg(cdev, "Found %d mboxes and %d shmems !\n", num_mb, num_sh);
 
 	/* Bail out if mboxes and shmem descriptors are inconsistent */
@@ -133,19 +133,27 @@ static int mailbox_chan_validate(struct device *cdev, int *a2p_rx_chan,
 	    (num_mb == 4 && num_sh != 2)) {
 		dev_warn(cdev,
 			 "Invalid channel descriptor for '%pOF' - mbs:%d  shm:%d\n",
-			 np, num_mb, num_sh);
+			 to_of_node(fwnode), num_mb, num_sh);					// FIXME
 		return -EINVAL;
 	}
 
 	/* Bail out if provided shmem descriptors do not refer distinct areas  */
 	if (num_sh > 1) {
-		struct device_node *np_tx __free(device_node) =
-					of_parse_phandle(np, "shmem", 0);
-		struct device_node *np_rx __free(device_node) =
-					of_parse_phandle(np, "shmem", 1);
+		struct fwnode_handle *fwnode_tx __free(fwnode_handle) = NULL;
+		struct fwnode_handle *fwnode_rx __free(fwnode_handle) = NULL;
+		struct fwnode_reference_args args;
 
-		if (!np_tx || !np_rx || np_tx == np_rx) {
-			dev_warn(cdev, "Invalid shmem descriptor for '%pOF'\n", np);
+		ret = fwnode_property_get_reference_args(fwnode, "shmem", NULL, 0, 0, &args);
+		if (!ret)
+			fwnode_tx = args.fwnode;
+
+		ret = fwnode_property_get_reference_args(fwnode, "shmem", NULL, 0, 1, &args);
+		if (!ret)
+			fwnode_rx = args.fwnode;
+
+		if (!fwnode_tx || !fwnode_rx || fwnode_tx == fwnode_rx) {
+			dev_warn(cdev, "Invalid shmem descriptor for '%pOF'\n",
+				 to_of_node(fwnode));						// FIXME
 			ret = -EINVAL;
 		}
 	}

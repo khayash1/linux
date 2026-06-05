@@ -196,6 +196,7 @@ static void __iomem *shmem_setup_iomap(struct scmi_chan_info *cinfo,
 				       struct resource *res,
 				       struct scmi_shmem_io_ops **ops)
 {
+	struct fwnode_handle *shmem __free(fwnode_handle);
 	const char *desc = tx ? "Tx" : "Rx";
 	int ret, idx = tx ? 0 : 1;
 	struct device *cdev = cinfo->dev;
@@ -203,21 +204,23 @@ static void __iomem *shmem_setup_iomap(struct scmi_chan_info *cinfo,
 	resource_size_t size;
 	void __iomem *addr;
 	u32 reg_io_width;
+	struct fwnode_reference_args args;
 
-	struct device_node *shmem __free(device_node) = of_parse_phandle(cdev->of_node,
-		"shmem", idx);
-
-	if (!shmem)
+	ret = fwnode_property_get_reference_args(dev_fwnode(cdev), "shmem",
+						 NULL, 0, idx, &args);
+	if (ret)
 		return IOMEM_ERR_PTR(-ENODEV);
 
-	if (!of_device_is_compatible(shmem, "arm,scmi-shmem"))
+	shmem = args.fwnode;
+
+	if (!fwnode_device_is_compatible(shmem, "arm,scmi-shmem"))
 		return IOMEM_ERR_PTR(-ENXIO);
 
 	/* Use a local on-stack as a working area when not provided */
 	if (!res)
 		res = &lres;
 
-	ret = of_address_to_resource(shmem, 0, res);
+	ret = of_address_to_resource(to_of_node(shmem), 0, res);		// FIXME
 	if (ret) {
 		dev_err(cdev, "failed to get SCMI %s shared memory\n", desc);
 		return IOMEM_ERR_PTR(ret);
@@ -235,7 +238,7 @@ static void __iomem *shmem_setup_iomap(struct scmi_chan_info *cinfo,
 		return IOMEM_ERR_PTR(-EADDRNOTAVAIL);
 	}
 
-	of_property_read_u32(shmem, "reg-io-width", &reg_io_width);
+	fwnode_property_read_u32(shmem, "reg-io-width", &reg_io_width);
 	switch (reg_io_width) {
 	case 4:
 		*ops = &shmem_io_ops32;
