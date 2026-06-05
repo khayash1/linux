@@ -1057,6 +1057,7 @@ static int __mhuv2_probe(struct device *dev, struct resource *res, int irq)
 {
 	struct mhuv2 *mhu;
 	void __iomem *reg;
+	bool tx;
 	int ret = -EINVAL;
 
 	reg = devm_ioremap_resource(dev, res);
@@ -1070,13 +1071,15 @@ static int __mhuv2_probe(struct device *dev, struct resource *res, int irq)
 	mhu->mbox.dev = dev;
 	mhu->mbox.fw_xlate = mhuv2_mbox_fw_xlate;
 
-	if (device_is_compatible(dev, "arm,mhuv2-tx"))
+	if (device_is_compatible(dev, "arm,mhuv2-tx")) {
 		ret = mhuv2_tx_init(dev, mhu, reg, irq);
-	else if (device_is_compatible(dev, "arm,mhuv2-rx"))
+		tx = true;
+	} else if (device_is_compatible(dev, "arm,mhuv2-rx")) {
 		ret = mhuv2_rx_init(dev, mhu, reg, irq);
-	else
+		tx = false;
+	} else {
 		dev_err(dev, "Invalid compatible property\n");
-
+	}
 	if (ret)
 		return ret;
 
@@ -1092,6 +1095,9 @@ static int __mhuv2_probe(struct device *dev, struct resource *res, int irq)
 	ret = devm_mbox_controller_register(dev, &mhu->mbox);
 	if (ret)
 		dev_err(dev, "failed to register ARM MHUv2 driver %d\n", ret);
+
+	dev_info(dev, "ARM MHUv2 driver registered (%s, irq=%d)\n",
+		 (tx) ? "tx" : "rx", irq);
 
 	return ret;
 }
