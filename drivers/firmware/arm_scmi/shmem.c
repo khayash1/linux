@@ -13,6 +13,7 @@
 #include <linux/types.h>
 
 #include <linux/bug.h>
+#include <linux/acpi.h>
 
 #include "common.h"
 
@@ -220,7 +221,13 @@ static void __iomem *shmem_setup_iomap(struct scmi_chan_info *cinfo,
 	if (!res)
 		res = &lres;
 
-	ret = of_address_to_resource(to_of_node(shmem), 0, res);		// FIXME
+	if (is_of_node(shmem))
+		ret = of_address_to_resource(to_of_node(shmem), 0, res);
+	else if (is_acpi_node(shmem))
+		ret = acpi_fwnode_to_resource(shmem, res);
+	else
+		ret = -ENODEV;
+
 	if (ret) {
 		dev_err(cdev, "failed to get SCMI %s shared memory\n", desc);
 		return IOMEM_ERR_PTR(ret);
