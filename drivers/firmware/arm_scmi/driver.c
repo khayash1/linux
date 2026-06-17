@@ -3239,6 +3239,9 @@ static const struct scmi_desc *scmi_transport_setup(struct device *dev)
 		return NULL;
 	}
 
+	if (!dev_fwnode(dev))
+		device_set_node(dev, dev_fwnode(trans->supplier));
+
 	/* Provide core transport ops */
 	*trans->core_ops = &scmi_trans_core_ops;
 
