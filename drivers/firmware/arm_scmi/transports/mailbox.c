@@ -91,7 +91,7 @@ mailbox_chan_available(struct fwnode_handle *fwnode, int prot_id, int idx)
 	 * index accordingly; proper full validation will be made later
 	 * in mailbox_chan_setup().
 	 */
-	num_mb = of_count_phandle_with_args(to_of_node(fwnode), "mboxes", "#mbox-cells");	// FIXME
+	num_mb = fwnode_count_reference_args(fwnode, "mboxes", "#mbox-cells");			//@@@
 	if (num_mb == 3 && idx == 1)
 		idx = 2;
 
@@ -123,8 +123,8 @@ static int mailbox_chan_validate(struct device *cdev, int *a2p_rx_chan,
 	int num_mb, num_sh, ret = 0;
 	struct fwnode_handle *fwnode = dev_fwnode(cdev);
 
-	num_mb = of_count_phandle_with_args(to_of_node(fwnode), "mboxes", "#mbox-cells");	// FIXME
-	num_sh = of_count_phandle_with_args(to_of_node(fwnode), "shmem", NULL);			// FIXME
+	num_mb = fwnode_count_reference_args(fwnode, "mboxes", "#mbox-cells");			//@@@
+	num_sh = fwnode_count_reference_args(fwnode, "shmem", NULL);				//@@@
 	dev_dbg(cdev, "Found %d mboxes and %d shmems !\n", num_mb, num_sh);
 
 	/* Bail out if mboxes and shmem descriptors are inconsistent */
