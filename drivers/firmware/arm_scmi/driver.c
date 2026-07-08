@@ -2881,7 +2881,8 @@ static int scmi_channels_setup(struct scmi_info *info)
 	if (ret)
 		return ret;
 
-	fwnode_for_each_available_child_node_scoped(top_fwnode, child) {
+	/* FIXME: "available" macro can't get a child HDE data node */
+	fwnode_for_each_child_node_scoped(top_fwnode, child) {
 		u32 prot_id;
 
 		if (fwnode_property_read_u32(child, "reg", &prot_id))
@@ -3361,7 +3362,8 @@ static int scmi_probe(struct platform_device *pdev)
 
 	scmi_enable_matching_quirks(info);
 
-	fwnode_for_each_available_child_node(fwnode, child) {
+	/* FIXME: "available" macro can't get a child HDE data node */
+	fwnode_for_each_child_node(fwnode, child) {
 		u32 prot_id;
 
 		if (fwnode_property_read_u32(child, "reg", &prot_id))
