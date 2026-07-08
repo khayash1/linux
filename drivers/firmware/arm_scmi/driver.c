@@ -3247,7 +3247,7 @@ static int scmi_probe(struct platform_device *pdev)
 	struct scmi_info *info;
 	bool coex = IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT_COEX);
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *child, *fwnode = dev_fwnode(dev);
+	struct fwnode_handle *child, *fwnode;
 
 	desc = scmi_transport_setup(dev);
 	if (!desc) {
@@ -3255,6 +3255,7 @@ static int scmi_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto out_err;
 	}
+	fwnode = dev_fwnode(dev);
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
