@@ -1057,7 +1057,7 @@ static int __mhuv2_probe(struct device *dev, struct resource *res, int irq)
 	void __iomem *reg;
 	int ret = -EINVAL;
 
-	reg = devm_of_iomap(dev, dev->of_node, 0, NULL);
+	reg = devm_ioremap_resource(dev, res);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
