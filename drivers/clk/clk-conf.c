@@ -12,21 +12,21 @@
 #include <linux/printk.h>
 #include <linux/slab.h>
 
-static int __set_clk_parents(struct device_node *node, bool clk_supplier)
+static int __set_clk_parents(struct fwnode_handle *fwnode, bool clk_supplier)
 {
-	struct of_phandle_args clkspec;
+	struct fwnode_reference_args clkspec;
 	int index, rc, num_parents;
 	struct clk *clk, *pclk;
 
-	num_parents = of_count_phandle_with_args(node, "assigned-clock-parents",
-						 "#clock-cells");
+	num_parents = fwnode_count_reference_args(fwnode, "assigned-clock-parents",
+						  "#clock-cells");
 	if (num_parents == -EINVAL)
-		pr_err("clk: invalid value of clock-parents property at %pOF\n",
-		       node);
+		pr_err("clk: invalid value of clock-parents property at %pfw\n",
+		       fwnode);
 
 	for (index = 0; index < num_parents; index++) {
-		rc = of_parse_phandle_with_args(node, "assigned-clock-parents",
-					"#clock-cells",	index, &clkspec);
+		rc = fwnode_property_get_reference_args(fwnode, "assigned-clock-parents",
+							"#clock-cells",	0, index, &clkspec);
 		if (rc < 0) {
 			/* skip empty (null) phandles */
 			if (rc == -ENOENT)
@@ -34,34 +34,34 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 			else
 				return rc;
 		}
-		if (clkspec.np == node && !clk_supplier) {
-			of_node_put(clkspec.np);
+		if (clkspec.fwnode == fwnode && !clk_supplier) {
+			fwnode_handle_put(clkspec.fwnode);
 			return 0;
 		}
-		pclk = of_clk_get_from_provider(&clkspec);
-		of_node_put(clkspec.np);
+		pclk = fwnode_clk_get_from_provider(&clkspec);
+		fwnode_handle_put(clkspec.fwnode);
 		if (IS_ERR(pclk)) {
 			if (PTR_ERR(pclk) != -EPROBE_DEFER)
-				pr_warn("clk: couldn't get parent clock %d for %pOF\n",
-					index, node);
+				pr_warn("clk: couldn't get parent clock %d for %pfw\n",
+					index, fwnode);
 			return PTR_ERR(pclk);
 		}
 
-		rc = of_parse_phandle_with_args(node, "assigned-clocks",
-					"#clock-cells", index, &clkspec);
+		rc = fwnode_property_get_reference_args(fwnode, "assigned-clocks",
+							"#clock-cells", 0, index, &clkspec);
 		if (rc < 0)
 			goto err;
-		if (clkspec.np == node && !clk_supplier) {
-			of_node_put(clkspec.np);
+		if (clkspec.fwnode == fwnode && !clk_supplier) {
+			fwnode_handle_put(clkspec.fwnode);
 			rc = 0;
 			goto err;
 		}
-		clk = of_clk_get_from_provider(&clkspec);
-		of_node_put(clkspec.np);
+		clk = fwnode_clk_get_from_provider(&clkspec);
+		fwnode_handle_put(clkspec.fwnode);
 		if (IS_ERR(clk)) {
 			if (PTR_ERR(clk) != -EPROBE_DEFER)
-				pr_warn("clk: couldn't get assigned clock %d for %pOF\n",
-					index, node);
+				pr_warn("clk: couldn't get assigned clock %d for %pfw\n",
+					index, fwnode);
 			rc = PTR_ERR(clk);
 			goto err;
 		}
@@ -79,23 +79,23 @@ err:
 	return rc;
 }
 
-static int __set_clk_rates(struct device_node *node, bool clk_supplier)
+static int __set_clk_rates(struct fwnode_handle *fwnode, bool clk_supplier)
 {
-	struct of_phandle_args clkspec;
+	struct fwnode_reference_args clkspec;
 	int rc, count, count_64, index;
 	struct clk *clk;
 	u64 *rates_64 __free(kfree) = NULL;
 	u32 *rates __free(kfree) = NULL;
 
-	count = of_property_count_u32_elems(node, "assigned-clock-rates");
-	count_64 = of_property_count_u64_elems(node, "assigned-clock-rates-u64");
+	count = 0; //FIXME fwnode_property_count_u32_elems(fwnode, "assigned-clock-rates");
+	count_64 = 0; //FIXME fwnode_property_count_u64_elems(fwnode, "assigned-clock-rates-u64");
 	if (count_64 > 0) {
 		count = count_64;
 		rates_64 = kcalloc(count, sizeof(*rates_64), GFP_KERNEL);
 		if (!rates_64)
 			return -ENOMEM;
 
-		rc = of_property_read_u64_array(node,
+		rc = fwnode_property_read_u64_array(fwnode,
 						"assigned-clock-rates-u64",
 						rates_64, count);
 	} else if (count > 0) {
@@ -103,8 +103,8 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 		if (!rates)
 			return -ENOMEM;
 
-		rc = of_property_read_u32_array(node, "assigned-clock-rates",
-						rates, count);
+		rc = fwnode_property_read_u32_array(fwnode, "assigned-clock-rates",
+						    rates, count);
 	} else {
 		return 0;
 	}
@@ -121,8 +121,8 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 			rate = rates[index];
 
 		if (rate) {
-			rc = of_parse_phandle_with_args(node, "assigned-clocks",
-					"#clock-cells",	index, &clkspec);
+			rc = fwnode_property_get_reference_args(fwnode, "assigned-clocks",
+								"#clock-cells",	0, index, &clkspec);
 			if (rc < 0) {
 				/* skip empty (null) phandles */
 				if (rc == -ENOENT)
@@ -130,17 +130,17 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 				else
 					return rc;
 			}
-			if (clkspec.np == node && !clk_supplier) {
-				of_node_put(clkspec.np);
+			if (clkspec.fwnode == fwnode && !clk_supplier) {
+				fwnode_handle_put(clkspec.fwnode);
 				return 0;
 			}
 
-			clk = of_clk_get_from_provider(&clkspec);
-			of_node_put(clkspec.np);
+			clk = fwnode_clk_get_from_provider(&clkspec);
+			fwnode_handle_put(clkspec.fwnode);
 			if (IS_ERR(clk)) {
 				if (PTR_ERR(clk) != -EPROBE_DEFER)
-					pr_warn("clk: couldn't get clock %d for %pOF\n",
-						index, node);
+					pr_warn("clk: couldn't get clock %d for %pfw\n",
+						index, fwnode);
 				return PTR_ERR(clk);
 			}
 
@@ -155,16 +155,16 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 	return 0;
 }
 
-static int __set_clk_spread_spectrum(struct device_node *node, bool clk_supplier)
+static int __set_clk_spread_spectrum(struct fwnode_handle *fwnode, bool clk_supplier)
 {
 	u32 elem_size = sizeof(struct clk_spread_spectrum);
 	struct clk_spread_spectrum *sscs;
-	struct of_phandle_args clkspec;
+	struct fwnode_reference_args clkspec;
 	int rc, count, index;
 	struct clk *clk;
 
 	/* modfreq, spreadPercent, modmethod */
-	count = of_property_count_elems_of_size(node, "assigned-clock-sscs", elem_size);
+	count = 0; //FIXME fwnode_property_count_elems_of_size(fwnode, "assigned-clock-sscs", elem_size);
 	if (count <= 0)
 		return 0;
 
@@ -172,8 +172,8 @@ static int __set_clk_spread_spectrum(struct device_node *node, bool clk_supplier
 	if (!sscs)
 		return -ENOMEM;
 
-	rc = of_property_read_u32_array(node, "assigned-clock-sscs", (u32 *)sscs,
-					count * 3);
+	rc = fwnode_property_read_u32_array(fwnode, "assigned-clock-sscs", (u32 *)sscs,
+					    count * 3);
 	if (rc)
 		goto free_sscs;
 
@@ -184,8 +184,8 @@ static int __set_clk_spread_spectrum(struct device_node *node, bool clk_supplier
 		if (!conf->modfreq_hz && !conf->spread_bp && !conf->method)
 			continue;
 
-		rc = of_parse_phandle_with_args(node, "assigned-clocks", "#clock-cells",
-						index, &clkspec);
+		rc = fwnode_property_get_reference_args(fwnode, "assigned-clocks", "#clock-cells",
+							0, index, &clkspec);
 		if (rc < 0) {
 			/* skip empty (null) phandles */
 			if (rc == -ENOENT) {
@@ -195,17 +195,17 @@ static int __set_clk_spread_spectrum(struct device_node *node, bool clk_supplier
 				goto free_sscs;
 		}
 
-		if (clkspec.np == node && !clk_supplier) {
-			of_node_put(clkspec.np);
+		if (clkspec.fwnode == fwnode && !clk_supplier) {
+			fwnode_handle_put(clkspec.fwnode);
 			goto free_sscs;
 		}
 
-		clk = of_clk_get_from_provider(&clkspec);
-		of_node_put(clkspec.np);
+		clk = fwnode_clk_get_from_provider(&clkspec);
+		fwnode_handle_put(clkspec.fwnode);
 		if (IS_ERR(clk)) {
 			if (PTR_ERR(clk) != -EPROBE_DEFER)
-				pr_warn("clk: couldn't get clock %d for %pOF\n",
-					index, node);
+				pr_warn("clk: couldn't get clock %d for %pfw\n",
+					index, fwnode);
 			rc = PTR_ERR(clk);
 			goto free_sscs;
 		}
@@ -239,21 +239,25 @@ free_sscs:
  * If @clk_supplier is false the function exits returning 0 as soon as it
  * determines the @node is also a supplier of any of the clocks.
  */
-int of_clk_set_defaults(struct device_node *node, bool clk_supplier)
+int fwnode_clk_set_defaults(struct fwnode_handle *fwnode, bool clk_supplier)
 {
 	int rc;
 
-	if (!node)
+	if (!fwnode)
 		return 0;
 
-	rc = __set_clk_spread_spectrum(node, clk_supplier);
+	rc = __set_clk_spread_spectrum(fwnode, clk_supplier);
 	if (rc < 0)
 		return rc;
 
-	rc = __set_clk_parents(node, clk_supplier);
+	rc = __set_clk_parents(fwnode, clk_supplier);
 	if (rc < 0)
 		return rc;
 
-	return __set_clk_rates(node, clk_supplier);
+	return __set_clk_rates(fwnode, clk_supplier);
+}
+int of_clk_set_defaults(struct device_node *node, bool clk_supplier)
+{
+	return fwnode_clk_set_defaults(of_fwnode_handle(node), clk_supplier);
 }
 EXPORT_SYMBOL_GPL(of_clk_set_defaults);

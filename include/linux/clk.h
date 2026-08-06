@@ -17,6 +17,7 @@ struct device;
 struct clk;
 struct device_node;
 struct of_phandle_args;
+struct fwnode_reference_args;
 
 /**
  * DOC: clk notifier callback types
@@ -1262,6 +1263,7 @@ static inline struct clk *clk_get_optional(struct device *dev, const char *id)
 struct clk *of_clk_get(struct device_node *np, int index);
 struct clk *of_clk_get_by_name(struct device_node *np, const char *name);
 struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec);
+struct clk *fwnode_clk_get_from_provider(struct fwnode_reference_args *clkspec);
 #else
 static inline struct clk *of_clk_get(struct device_node *np, int index)
 {
@@ -1273,6 +1275,10 @@ static inline struct clk *of_clk_get_by_name(struct device_node *np,
 	return ERR_PTR(-ENOENT);
 }
 static inline struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec)
+{
+	return ERR_PTR(-ENOENT);
+}
+static inline struct clk *fwnode_clk_get_from_provider(struct fwnode_reference_args *clkspec)
 {
 	return ERR_PTR(-ENOENT);
 }
