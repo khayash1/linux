@@ -10,9 +10,11 @@
 #include <linux/types.h>
 
 struct device_node;
+struct fwnode_handle;
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
 int of_clk_set_defaults(struct device_node *node, bool clk_supplier);
+int fwnode_clk_set_defaults(struct fwnode_handle *fwnode, bool clk_supplier);
 #else
 static inline int of_clk_set_defaults(struct device_node *node,
 				      bool clk_supplier)

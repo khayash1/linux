@@ -102,8 +102,8 @@ struct clk *clk_get(struct device *dev, const char *con_id)
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct clk_hw *hw;
 
-	if (dev && dev->of_node) {
-		hw = of_clk_get_hw(dev->of_node, 0, con_id);
+	if (dev && dev->fwnode) {
+		hw = fwnode_clk_get_hw(dev->fwnode, 0, con_id);
 		if (!IS_ERR(hw) || PTR_ERR(hw) == -EPROBE_DEFER)
 			return clk_hw_create_clk(dev, hw, dev_id, con_id, NULL);
 	}
