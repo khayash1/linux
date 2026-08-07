@@ -653,6 +653,43 @@ struct fwnode_handle *fwnode_find_reference(const struct fwnode_handle *fwnode,
 EXPORT_SYMBOL_GPL(fwnode_find_reference);
 
 /**
+ * fwnode_count_reference_args - Count references with arguments
+ * @fwnode: Firmware node containing the property
+ * @list_name: The name of property containing a list of references
+ * @cells_name: The name of property specifying the number of arguments
+ *              for each references
+ *
+ * Count the number of references described by a property in a fwnode.
+ * Each reference may be associated with a variable number of arguments,
+ * where the number of arguments is determined by @cells_name in the
+ * referenced node.
+ *
+ * Return: Number of referemce entries on success, or negative error code
+ * on failure.
+ */
+int fwnode_count_reference_args(const struct fwnode_handle *fwnode,
+				const char *list_name, const char *cells_name)
+{
+	struct fwnode_reference_args spec;
+	int ret, count = 0;
+
+	while (1) {
+		ret = fwnode_property_get_reference_args(fwnode, list_name,
+							 cells_name, 0, count,
+							 &spec);
+		if (ret == -ENOENT)
+			break;
+		if (ret)
+			return ret;
+
+		fwnode_handle_put(spec.fwnode);
+		count++;
+	}
+
+	return count;
+}
+
+/**
  * fwnode_get_name - Return the name of a node
  * @fwnode: The firmware node
  *
