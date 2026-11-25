@@ -823,6 +823,9 @@ const char *acpi_get_subsystem_id(acpi_handle handle);
 
 struct device *acpi_bus_find_device_by_name(const char *name);
 
+int acpi_fwnode_to_resource(struct fwnode_handle *fwnode,
+			    struct resource *res);
+
 #ifdef CONFIG_ACPI_MRRM
 int acpi_mrrm_max_mem_region(void);
 #endif
@@ -1166,6 +1169,12 @@ static inline acpi_handle acpi_get_processor_handle(int cpu)
 static inline int acpi_mrrm_max_mem_region(void)
 {
 	return 1;
+}
+
+static inline int acpi_fwnode_to_resource(struct fwnode_handle *fwnode,
+					  struct resource *res)
+{
+	return -ENODEV;
 }
 
 #define cmos_rtc_platform_device_present	false

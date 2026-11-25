@@ -1172,3 +1172,40 @@ struct acpi_device *acpi_resource_consumer(struct resource *res)
 	acpi_get_devices(NULL, acpi_res_consumer_cb, res, (void **) &consumer);
 	return consumer;
 }
+
+/**
+ * acpi_fwnode_to_resource - Get memory resources of a device from fwnode.
+ * @fwnode: ACPI device node to get the resources for.
+ * @res: Output generic resource object.
+ */
+int acpi_fwnode_to_resource(struct fwnode_handle *fwnode, struct resource *res)
+{
+	struct acpi_device *acpi = to_acpi_device_node(fwnode);
+	struct resource_entry *entry;
+	LIST_HEAD(r);
+	int ret;
+
+	if (!fwnode || !res)
+		return -EINVAL;
+
+	if (!is_acpi_node(fwnode))
+		return -ENODEV;
+
+	ret = acpi_dev_get_resources(acpi, &r, NULL, NULL);
+	if (ret < 0)
+		return ret;
+
+	list_for_each_entry(entry, &r, node) {
+		if (resource_type(entry->res) == IORESOURCE_MEM)
+			break;
+	}
+	acpi_dev_free_resource_list(&r);
+
+	if (entry && entry->res)
+		*res = *entry->res;
+	else
+		return -ENODEV;
+
+	return 0;
+}
+EXPORT_SYMBOL(acpi_fwnode_to_resource);
