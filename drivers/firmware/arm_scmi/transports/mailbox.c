@@ -81,10 +81,6 @@ static bool
 mailbox_chan_available(struct fwnode_handle *fwnode, int prot_id, int idx)
 {
 	int num_mb;
-	struct device_node *of_node = to_of_node(fwnode);
-
-	if (!of_node)
-		return false;
 
 	/*
 	 * Just check if bidirrectional channels are involved, and check the
