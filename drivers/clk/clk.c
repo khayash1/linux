@@ -3690,7 +3690,7 @@ static void possible_parent_show(struct seq_file *s, struct clk_core *core,
 	} else if (core->parents[i].fw_name) {
 		seq_printf(s, "<%s>(fw)", core->parents[i].fw_name);
 	} else {
-		if (core->parents[i].index >= 0)
+		if (core->parents[i].index >= 0 && core->of_node)	/* FIXME: ACPI displays "missing" */
 			name = of_clk_get_parent_name(core->of_node, core->parents[i].index);
 		if (!name)
 			name = "(missing)";
@@ -5376,6 +5376,24 @@ static int fwnode_parse_clkspec(const struct fwnode_handle *fwnode, int index,
 	}
 
 	return ret;
+}
+
+static int of_parse_clkspec(const struct device_node *np, int index,
+			    const char *name, struct of_phandle_args *of_args)
+{
+	struct fwnode_reference_args fw_args = {};
+	int i, ret;
+
+	ret = fwnode_parse_clkspec(of_fwnode_handle(np), index, name, &fw_args);
+	if (ret)
+		return ret;
+
+	of_args->np = to_of_node(fw_args.fwnode);
+	of_args->args_count = fw_args.nargs;
+	for (i = 0; i < fw_args.nargs; i++)
+		of_args->args[i] = fw_args.args[i];
+
+	return 0;
 }
 
 static struct clk_hw *
