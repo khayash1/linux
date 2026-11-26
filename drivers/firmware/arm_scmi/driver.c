@@ -2905,14 +2905,17 @@ scmi_txrx_setup(struct scmi_info *info, struct fwnode_handle *fwnode,
 static int scmi_channels_setup(struct scmi_info *info)
 {
 	int ret, idx;
-	struct fwnode_handle *fwnode = dev_fwnode(info->dev);
+	struct fwnode_handle *fwnode = dev_fwnode(info->dev), *_child;
 
 	/* Initialize a common generic channel at first */
 	ret = scmi_txrx_setup(info, fwnode, SCMI_PROTOCOL_BASE);
 	if (ret)
 		return ret;
 
-	if (!is_acpi_node(fwnode)) {
+	_child = fwnode_get_next_child_node(fwnode, NULL);
+	if (_child) {
+		fwnode_handle_get(_child);
+
 		/* FIXME: "avaiable" macro can't get child HDE data nodes */
 		fwnode_for_each_child_node_scoped(fwnode, child) {
 			u32 prot_id;
@@ -3338,7 +3341,7 @@ static int scmi_probe(struct platform_device *pdev)
 	struct scmi_info *info;
 	bool coex = IS_ENABLED(CONFIG_ARM_SCMI_RAW_MODE_SUPPORT_COEX);
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *child;
+	struct fwnode_handle *child, *_child;
 
 	desc = scmi_transport_setup(dev);
 	if (!desc) {
@@ -3453,7 +3456,10 @@ static int scmi_probe(struct platform_device *pdev)
 
 	scmi_enable_matching_quirks(info);
 
-	if (!is_acpi_node(dev_fwnode(dev))) {
+	_child = fwnode_get_next_child_node(dev_fwnode(dev), NULL);
+	if (_child) {
+		fwnode_handle_put(_child);
+
 		/* FIXME: "avaiable" macro can't get HDE data nodes */
 		fwnode_for_each_child_node(dev_fwnode(dev), child) {
 			u32 prot_id;
